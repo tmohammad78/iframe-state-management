@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Main HTML</title>
+</head>
+<body>
+    <iframe id="iframe1" src="iframe1.html"></iframe>
+    <iframe id="iframe2" src="iframe2.html"></iframe>
+
+    <button id="updateButton">Update Shared State</button>
+    <script type="module">
+        import * as Comlink from "https://unpkg.com/comlink/dist/esm/comlink.mjs";
+           
+            class TestClass { 
+                constructor() {
+
+                }   
+
+                getNum(num) {
+                    return 3 + num
+                }
+            }
+            const tt = new TestClass()
+            const worker = new SharedWorker("./shared-worker.js");
+            const obj = Comlink.wrap(worker.port);
+
+            alert(`Counter: ${await obj.counter}`);
+            await obj.inc();
+            alert(`Counter: ${await obj.counter}`);
+
+        // const sharedWorker = new SharedWorker('./shared-worker.js');
+        // const workerProxy = Comlink.wrap(sharedWorker.port);
+
+        // async function initializeIframes() {
+        //     const iframe1 = document.getElementById('iframe1').contentWindow;
+        //     const iframe2 = document.getElementById('iframe2').contentWindow;
+
+        //     iframe1.workerProxy = workerProxy;
+        //     iframe2.workerProxy = workerProxy;
+
+        //     // Initialize the worker proxy in the iframes
+        //     iframe1.postMessage('initialize', '*');
+        //     iframe2.postMessage('initialize', '*');
+        // }
+
+        // initializeIframes();
+
+        // // Button to update the shared state
+        // document.getElementById('updateButton').addEventListener('click', async () => {
+        //     const newValue = `updatedValue_${Date.now()}`;
+        //     await workerProxy.set('exampleKey', newValue);
+        // });
+    </script>
+</body>
+</html>

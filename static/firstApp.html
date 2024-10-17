@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<head>
+
+</head>
+<body>
+  <h1>This is First App</h1>
+  <div>
+    <button id="counter" onclick="">Count me bro</button>
+    <button onclick="handleGetData()">click to get Data</button>
+
+  </div>
+</body>
+<script type="module">
+  import * as Comlink from "https://unpkg.com/comlink/dist/esm/comlink.mjs";
+  // // import * as Comlink from "../../../../dist/esm/comlink.mjs";
+  // function counter(count) {
+  //   return count++
+  // }
+
+  // Comlink.expose(counter, Comlink.windowEndpoint(self.parent));
+
+  Comlink.transferHandlers.set("exampleTransfer", {
+    canHandle(obj) {
+      return obj && !!obj.transferMePlease;
+    },
+    serialize(obj) {
+      return [obj.number, [],];
+    },
+    deserialize(obj) {
+      return {number: obj, transferMePlease: true};
+    },
+  });
+
+  async function handleGetData() {
+        console.log('self')
+        try {
+            const remote = Comlink.wrap(Comlink.windowEndpoint(self.parent));
+            const remote2 = Comlink.wrap(self);
+            const c = await remote.subscribe("data",(data) => {
+              console.log(data,' inner ')
+            })
+            const a = await remote2.subscribe("data")
+            console.log(a,remote2,remote,c,'tis is first app')
+
+        } catch(err) { 
+            console.log(err)
+        }
+    }
+    window.handleGetData = handleGetData;
+  // async function init() {
+  //   const worker = new SharedWorker("./worker2.js");
+  //   /**
+  //    * SharedWorkers communicate via the `postMessage` function in their `port` property.
+  //    * Therefore you must use the SharedWorker's `port` property when calling `Comlink.wrap`.
+  //    */
+  //   const obj = Comlink.wrap(worker.port);
+
+  //   alert(`Counter: ${await obj.counter}`);
+  //   await obj.inc();
+  //   alert(`Counter: ${await obj.counter}`);
+  // }
+
+  // init();
+</script>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Iframe 2 </title>
+</head>
+<body>
+    <script  type="module">
+            import * as Comlink from "https://unpkg.com/comlink/dist/esm/comlink.mjs";
+
+        // Wait for the parent to pass the worker proxy
+        window.addEventListener('message', async (event) => {
+            if (event.data === 'initialize') {
+                const workerProxy = window.parent.workerProxy;
+
+                if (workerProxy) {
+                    // Example of getting a value from the worker
+                    const value = await workerProxy.get('exampleKey');
+                    console.log('Initial value from worker:', value);
+
+                    // Listen for messages from the worker
+                    window.parent.workerProxy[Comlink.createEndpoint(window.parent)].onmessage = function(e) {
+                        if (e.data.action === 'updated' && e.data.key === 'exampleKey') {
+                            console.log('Updated value from worker:', e.data.value);
+                        }
+                    };
+                } else {
+                    console.error('Worker proxy is not available.');
+                }
+            }
+        });
+
+        // Request initialization from the parent
+        window.parent.postMessage('initialize', '*');
+    </script>
+</body>
+</html>

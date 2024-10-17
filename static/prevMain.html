@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<htm>
+    <head>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div>
+            This is the main app
+            <div class="header">
+                This is header
+            </div>
+            <div class="main">
+                <div>
+                    this is counter: <span></span>
+                </div>
+            </div>
+        </div>
+    </body>
+    <iframe id="firstApp" src="firstApp.html"></iframe>
+    <iframe id="secondApp" src="secondApp.html"></iframe>
+    <script type="module">
+
+    import * as Comlink from "https://unpkg.com/comlink/dist/esm/comlink.mjs";
+    // import * as Comlink from "../../../../dist/esm/comlink.mjs";
+    
+    function validateUUID() {
+    return true
+    }
+    function uuid() {
+        return "3"
+    }
+    class PubSub {
+        constructor({ persistedTopics } = {}) {
+            this.topics = {};
+            this.subscriberTopics = {};
+            this.persistedMessages = {};
+            this.subscriberOnMsg = {};
+    
+            if (persistedTopics && !Array.isArray(persistedTopics)) {
+                throw new Error("Persisted topics must be an array of topics.");
+            }
+            if (persistedTopics) {
+                this.persistedMessages = persistedTopics.reduce((acc, cur) => {
+                    acc[cur] = {};
+                    return acc;
+                }, {});
+            }
+        }
+    
+        /**
+         * Subscribe to messages being published in the given topic.
+         * @param {string} topic - Name of the channel/topic where messages are published.
+         * @param {function} onMessage - Function called whenever new messages on the topic are published.
+         * @returns {string} - ID of this subscription.
+         */
+        subscribe(topic, onMessage) {
+            // Validate inputs
+            if (typeof topic !== "string") throw new Error("Topic must be a string.");
+            if (typeof onMessage !== "function") throw new Error("onMessage must be a function.");
+    
+            const subID = uuid();
+    
+            if (!(topic in this.topics)) {
+                this.topics[topic] = [subID];
+            } else {
+                this.topics[topic].push(subID);
+            }
+    
+            // Store onMessage and topic separately for faster lookup
+            this.subscriberOnMsg[subID] = onMessage;
+            this.subscriberTopics[subID] = topic;
+    
+            // If the topic is persisted and there are existing messages, trigger the onMessage handler immediately
+            if (topic in this.persistedMessages) {
+                onMessage(this.persistedMessages[topic]);
+            }
+            return subID;
+        }
+    
+        /**
+         * Publish messages on a topic for all subscribers to receive.
+         * @param {string} topic - The topic where the message is sent.
+         * @param {object} message - The message to send. Only object format is supported.
+         */
+        publish(topic, message) {
+            if (typeof topic !== "string") throw new Error("Topic must be a string.");
+            if (typeof message !== "object") throw new Error("Message must be an object.");
+    
+            // If topic exists, post messages
+            if (topic in this.topics) {
+                const subIDs = this.topics[topic];
+                subIDs.forEach((id) => {
+                    if (id in this.subscriberOnMsg) {
+                        this.subscriberOnMsg[id](message);
+                    }
+                });
+            }
+            if (topic in this.persistedMessages) {
+                this.persistedMessages[topic] = message;
+            }
+        }
+    
+        /**
+         * Unsusbscribe for a given subscription id.
+         * @param {string} id - Subscription id
+         */
+        unsubscribe(id) {
+            // Validate inputs
+            if (typeof id !== "string" || !validateUUID(id)) {
+                throw new Error("ID must be a valid UUID.");
+            }
+    
+            // If the id exists in our subscriptions then clear it.
+            if (id in this.subscriberOnMsg && id in this.subscriberTopics) {
+                // Delete message listener
+                delete this.subscriberOnMsg[id];
+                // Remove id from the topics tracker
+                const topic = this.subscriberTopics[id];
+                // Cleanup topics
+                if (topic && topic in this.topics) {
+                    const idx = this.topics[topic].findIndex((tID) => tID === id);
+                    if (idx > -1) {
+                        this.topics[topic].splice(idx, 1);
+                    }
+                    // If there are no more listeners, clean up the topic as well
+                    if (this.topics[topic].length === 0) {
+                        delete this.topics[topic];
+                    }
+                }
+                // Delete the topic for this id
+                delete this.subscriberTopics[id];
+            }
+        }
+    }
+
+    Comlink.transferHandlers.set("exampleTransfer", {
+        canHandle(obj) {
+        return obj && !!obj.transferMePlease;
+        },
+        serialize(obj) {
+        return [obj.number, [],];
+        },
+        deserialize(obj) {
+        return {number: obj, transferMePlease: true};
+        },
+    });
+
+    let count = 0
+    const data = {
+        title: "this is title",
+        auth: true,
+        loading: false
+    }
+    async function main() {
+        const ifr = document.getElementById("firstApp");
+        await new Promise((resolve) => (ifr.onload = resolve));
+        const f = Comlink.wrap(Comlink.windowEndpoint(ifr.contentWindow));
+        const c = await f.childFn(100,12)
+        console.log(c,'tis is main')
+        console.log(self,ifr.contentWindow,'self')
+        alert(`1 + 3 = ${await f(1, 3)}`);
+    }
+
+
+    const objectMain = {
+      weAreHere: "firstApp",
+      data: {
+        title: "first app"
+      },
+      childFn: (a,b) => a - b
+    }
+    
+    // Comlink.expose(objectMain, self);\
+    const ifr = document.getElementById("firstApp");
+    
+    const ddd = new PubSub({  persistedTopics: ["data"] })
+    // Comlink.windowEndpoint(ifr.contentWindow)
+    ddd.publish("data", {
+              defaultPrice: 1000,
+              availablePath: "",
+              isPage2: false
+    })
+
+    Comlink.expose(ddd,Comlink.windowEndpoint(ifr.contentWindow));
+    
+    main();
+    </script>
+</htm>
